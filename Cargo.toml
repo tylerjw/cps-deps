@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 license = "MIT"
 description = "Common Package Specification (CPS) Rust Library"
-repository = "https://github.com/tylerjw/cps-build"
+repository = "https://github.com/tylerjw/cps-deps"
 
 [dependencies]
 clap = { version = "4.5.3", features = ["derive"] }
