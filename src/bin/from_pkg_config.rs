@@ -22,6 +22,8 @@ fn find_pc_files() -> Vec<PathBuf> {
 fn main() -> Result<(), Box<dyn Error>> {
     let pc_files = find_pc_files();
 
+    dbg!(&pc_files);
+
     let package_names: Vec<_> = pc_files
         .iter()
         .map(|path| {
