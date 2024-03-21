@@ -1,5 +1,5 @@
 use clap::Parser;
-use cps_build::cps::Package;
+use cps_deps::cps::Package;
 use std::{error::Error, fs::File, io::BufReader};
 
 #[derive(Parser)]
