@@ -66,13 +66,13 @@ impl Library {
             .unwrap()
             .captures(&data)
             .map(|cap| cap[1].to_string())
-            .map(|req| req.split(" ").map(String::from).collect::<Vec<String>>())
+            .map(|req| req.split(' ').map(String::from).collect::<Vec<String>>())
             .unwrap_or_default();
         let cflags = Regex::new(r"Cflags: (.+)")
             .unwrap()
             .captures(&data)
             .map(|cap| cap[1].to_string())
-            .map(|req| req.split(" ").map(String::from).collect::<Vec<String>>())
+            .map(|req| req.split(' ').map(String::from).collect::<Vec<String>>())
             .unwrap_or_default();
 
         Self {
