@@ -65,6 +65,8 @@ fn find_library(library: &str, search_paths: &[PathBuf]) -> Result<PathBuf, Stri
         .iter()
         .flat_map(|base| {
             [
+                PathBuf::from(format!("/usr/lib/x86_64-linux-gnu/lib{}.so", library)),
+                PathBuf::from(format!("/usr/lib/x86_64-linux-gnu/lib{}.a", library)),
                 base.join(format!("lib{}.so", library)),
                 base.join(format!("lib{}.a", library)),
             ]
