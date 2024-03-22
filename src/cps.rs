@@ -1,28 +1,32 @@
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Platform {
-    c_runtime_vendor: Option<String>,
-    c_runtime_version: Option<String>,
-    clr_vendor: Option<String>,
-    clr_version: Option<String>,
-    compat_version: Option<String>,
-    cpp_runtime_vendor: Option<String>,
-    cpp_runtime_version: Option<String>,
-    isa: Option<String>,
-    jvm_vendor: Option<String>,
-    jvm_version: Option<String>,
-    kernel: Option<String>,
-    kernel_version: Option<String>,
+    pub c_runtime_vendor: Option<String>,
+    pub c_runtime_version: Option<String>,
+    pub clr_vendor: Option<String>,
+    pub clr_version: Option<String>,
+    pub compat_version: Option<String>,
+    pub cpp_runtime_vendor: Option<String>,
+    pub cpp_runtime_version: Option<String>,
+    pub isa: Option<String>,
+    pub jvm_vendor: Option<String>,
+    pub jvm_version: Option<String>,
+    pub kernel: Option<String>,
+    pub kernel_version: Option<String>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Requirement {
-    components: Option<Vec<String>>,
-    hints: Option<Vec<String>>,
+    pub components: Option<Vec<String>>,
+    pub hints: Option<Vec<String>>,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Component {
@@ -124,34 +128,42 @@ pub enum LanguageStringList {
     List(Vec<String>),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Configuration {
-    requires: Option<Vec<String>>,
-    compile_feature: Option<Vec<String>>,
-    compile_flags: Option<LanguageStringList>,
-    definitions: Option<LanguageStringList>,
-    includes: Option<LanguageStringList>,
-    link_features: Option<Vec<String>>,
-    link_flags: Option<Vec<String>>,
-    link_languages: Option<Vec<String>>,
-    link_libraries: Option<Vec<String>>,
-    link_location: Option<String>,
-    link_requires: Option<String>,
+impl LanguageStringList {
+    pub fn any_language_map(list: Vec<String>) -> Self {
+        Self::LanguageMap(HashMap::from([("*".to_string(), list)]))
+    }
 }
 
+#[skip_serializing_none]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Configuration {
+    pub requires: Option<Vec<String>>,
+    pub compile_feature: Option<Vec<String>>,
+    pub compile_flags: Option<LanguageStringList>,
+    pub definitions: Option<LanguageStringList>,
+    pub includes: Option<LanguageStringList>,
+    pub link_features: Option<Vec<String>>,
+    pub link_flags: Option<Vec<String>>,
+    pub link_languages: Option<Vec<String>>,
+    pub link_libraries: Option<Vec<String>>,
+    pub link_location: Option<String>,
+    pub link_requires: Option<String>,
+}
+
+#[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Package {
-    name: String,
-    cps_version: String,
-    components: HashMap<String, Component>,
+    pub name: String,
+    pub cps_version: String,
+    pub components: HashMap<String, Component>,
 
-    platform: Option<Platform>,
-    configuration: Option<String>,
-    configurations: Option<Vec<String>>,
-    cps_path: Option<String>,
-    version: Option<String>,
-    version_schema: Option<String>,
-    description: Option<String>,
-    default_components: Option<Vec<String>>,
-    requires: Option<HashMap<String, Requirement>>,
+    pub platform: Option<Platform>,
+    pub configuration: Option<String>,
+    pub configurations: Option<Vec<String>>,
+    pub cps_path: Option<String>,
+    pub version: Option<String>,
+    pub version_schema: Option<String>,
+    pub description: Option<String>,
+    pub default_components: Option<Vec<String>>,
+    pub requires: Option<HashMap<String, Requirement>>,
 }
