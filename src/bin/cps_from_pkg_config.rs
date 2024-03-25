@@ -60,11 +60,8 @@ fn main() -> anyhow::Result<()> {
                     default_components: Some(vec![library.default_component_name.clone()]),
                     components: HashMap::from([(
                         library.default_component_name,
-                        cps::Component::Interface {
-                            location: None,
+                        cps::Component::Interface(cps::LocationOptionalComponent {
                             requires: library.requires,
-                            configurations: None,
-                            compile_feature: None,
                             compile_flags: (!library.compile_flags.is_empty()).then(|| {
                                 cps::LanguageStringList::any_language_map(library.compile_flags)
                             }),
@@ -80,21 +77,12 @@ fn main() -> anyhow::Result<()> {
                                         .collect(),
                                 )
                             }),
-                            link_features: None,
                             link_flags: (!library.link_flags.is_empty())
                                 .then_some(library.link_flags),
-                            link_languages: None,
-                            link_libraries: None,
-                            link_location: None,
-                            link_requires: None,
-                        },
+                            ..cps::LocationOptionalComponent::default()
+                        }),
                     )]),
-                    platform: None,
-                    configuration: None,
-                    configurations: None,
-                    cps_path: None,
-                    version_schema: None,
-                    requires: None,
+                    ..cps::Package::default()
                 }
             }
             (Some(archive_location), None) => {
@@ -118,11 +106,9 @@ fn main() -> anyhow::Result<()> {
 
                 components.insert(
                     library.default_component_name.clone(),
-                    cps::Component::Archive {
+                    cps::Component::Archive(cps::LocationRequiredComponent {
                         location: archive_location.into_os_string().into_string().unwrap(),
                         requires,
-                        configurations: None,
-                        compile_feature: None,
                         compile_flags: (!library.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(library.compile_flags)
                         }),
@@ -138,53 +124,27 @@ fn main() -> anyhow::Result<()> {
                                     .collect(),
                             )
                         }),
-                        link_features: None,
                         link_flags: (!library.link_flags.is_empty()).then_some(library.link_flags),
-                        link_languages: None,
-                        link_libraries: None,
-                        link_location: None,
-                        link_requires: None,
-                    },
+                        ..cps::LocationRequiredComponent::default()
+                    }),
                 );
 
                 for (name, location) in library.link_libraries {
                     if location.ends_with("so") {
                         components.insert(
                             name,
-                            cps::Component::Dylib {
+                            cps::Component::Dylib(cps::LocationRequiredComponent {
                                 location: location.into_os_string().into_string().unwrap(),
-                                requires: None,
-                                configurations: None,
-                                compile_feature: None,
-                                compile_flags: None,
-                                definitions: None,
-                                includes: None,
-                                link_features: None,
-                                link_flags: None,
-                                link_languages: None,
-                                link_libraries: None,
-                                link_location: None,
-                                link_requires: None,
-                            },
+                                ..cps::LocationRequiredComponent::default()
+                            }),
                         );
                     } else {
                         components.insert(
                             name,
-                            cps::Component::Archive {
+                            cps::Component::Archive(cps::LocationRequiredComponent {
                                 location: location.into_os_string().into_string().unwrap(),
-                                requires: None,
-                                configurations: None,
-                                compile_feature: None,
-                                compile_flags: None,
-                                definitions: None,
-                                includes: None,
-                                link_features: None,
-                                link_flags: None,
-                                link_languages: None,
-                                link_libraries: None,
-                                link_location: None,
-                                link_requires: None,
-                            },
+                                ..cps::LocationRequiredComponent::default()
+                            }),
                         );
                     }
                 }
@@ -196,12 +156,7 @@ fn main() -> anyhow::Result<()> {
                     description: library.description,
                     default_components: Some(vec![library.default_component_name]),
                     components,
-                    platform: None,
-                    configuration: None,
-                    configurations: None,
-                    cps_path: None,
-                    version_schema: None,
-                    requires: None,
+                    ..cps::Package::default()
                 }
             }
             (_, Some(dylib_location)) => {
@@ -225,11 +180,9 @@ fn main() -> anyhow::Result<()> {
 
                 components.insert(
                     library.default_component_name.clone(),
-                    cps::Component::Dylib {
+                    cps::Component::Dylib(cps::LocationRequiredComponent {
                         location: dylib_location.into_os_string().into_string().unwrap(),
                         requires,
-                        configurations: None,
-                        compile_feature: None,
                         compile_flags: (!library.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(library.compile_flags)
                         }),
@@ -245,53 +198,27 @@ fn main() -> anyhow::Result<()> {
                                     .collect(),
                             )
                         }),
-                        link_features: None,
                         link_flags: (!library.link_flags.is_empty()).then_some(library.link_flags),
-                        link_languages: None,
-                        link_libraries: None,
-                        link_location: None,
-                        link_requires: None,
-                    },
+                        ..cps::LocationRequiredComponent::default()
+                    }),
                 );
 
                 for (name, location) in library.link_libraries {
                     if location.ends_with("so") {
                         components.insert(
                             name,
-                            cps::Component::Dylib {
+                            cps::Component::Dylib(cps::LocationRequiredComponent {
                                 location: location.into_os_string().into_string().unwrap(),
-                                requires: None,
-                                configurations: None,
-                                compile_feature: None,
-                                compile_flags: None,
-                                definitions: None,
-                                includes: None,
-                                link_features: None,
-                                link_flags: None,
-                                link_languages: None,
-                                link_libraries: None,
-                                link_location: None,
-                                link_requires: None,
-                            },
+                                ..cps::LocationRequiredComponent::default()
+                            }),
                         );
                     } else {
                         components.insert(
                             name,
-                            cps::Component::Archive {
+                            cps::Component::Archive(cps::LocationRequiredComponent {
                                 location: location.into_os_string().into_string().unwrap(),
-                                requires: None,
-                                configurations: None,
-                                compile_feature: None,
-                                compile_flags: None,
-                                definitions: None,
-                                includes: None,
-                                link_features: None,
-                                link_flags: None,
-                                link_languages: None,
-                                link_libraries: None,
-                                link_location: None,
-                                link_requires: None,
-                            },
+                                ..cps::LocationRequiredComponent::default()
+                            }),
                         );
                     }
                 }
@@ -303,12 +230,7 @@ fn main() -> anyhow::Result<()> {
                     description: library.description,
                     default_components: Some(vec![library.default_component_name]),
                     components,
-                    platform: None,
-                    configuration: None,
-                    configurations: None,
-                    cps_path: None,
-                    version_schema: None,
-                    requires: None,
+                    ..cps::Package::default()
                 }
             }
         };
