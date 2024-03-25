@@ -1,4 +1,4 @@
-use crate::lib_search::{find_library, get_multiarch_lib_path};
+use crate::lib_search::find_library;
 use anyhow::{anyhow, Result};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -187,13 +187,10 @@ impl Library {
         let definitions = filter_flag(&cflags, "-D");
         let compile_flags = filter_excluding_flags(&cflags, &["-I", "-D"]);
 
-        let mut search_paths = filter_flag(&libs, "-L")
+        let search_paths = filter_flag(&libs, "-L")
             .iter()
             .map(PathBuf::from)
             .collect::<Vec<_>>();
-        if let Some(multiarch_search_path) = get_multiarch_lib_path() {
-            search_paths.push(multiarch_search_path);
-        }
 
         let link_flags = filter_excluding_flags(&libs, &["-L", "-l"]);
 
