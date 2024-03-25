@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -7,22 +8,22 @@ pub fn get_multiarch_lib_path() -> Option<PathBuf> {
     Some(PathBuf::from(format!("/usr/lib/{}", arch)))
 }
 
-pub fn find_library(
-    library: &str,
-    extension: &str,
-    search_paths: &[PathBuf],
-) -> Result<PathBuf, String> {
+pub fn find_library(library: &str, extension: &str, search_paths: &[PathBuf]) -> Result<String> {
     let filepaths: Vec<_> = search_paths
         .iter()
         .map(|base| base.join(format!("lib{}.{}", library, extension)))
         .collect();
 
-    let error_string = format!(
+    let error = anyhow!(
         "Could not find required library `{}` at paths: `{:?}`",
-        library, &filepaths
+        library,
+        &filepaths
     );
-    filepaths
+    Ok(filepaths
         .into_iter()
         .find(|path| path.exists())
-        .ok_or(error_string)
+        .ok_or(error)?
+        .into_os_string()
+        .into_string()
+        .unwrap())
 }

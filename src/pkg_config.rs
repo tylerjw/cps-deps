@@ -122,13 +122,13 @@ pub struct Library {
     pub description: Option<String>,
     pub version: Option<String>,
     pub requires: Option<Vec<String>>,
-    pub includes: Vec<PathBuf>,
+    pub includes: Vec<String>,
     pub definitions: Vec<String>,
     pub compile_flags: Vec<String>,
     pub default_component_name: String,
-    pub dylib_location: Option<PathBuf>,
-    pub archive_location: Option<PathBuf>,
-    pub link_libraries: HashMap<String, PathBuf>,
+    pub dylib_location: Option<String>,
+    pub archive_location: Option<String>,
+    pub link_libraries: HashMap<String, String>,
     pub link_flags: Vec<String>,
 }
 
@@ -183,10 +183,7 @@ impl Library {
             })
             .unwrap_or_default();
 
-        let includes = filter_flag(&cflags, "-I")
-            .iter()
-            .map(PathBuf::from)
-            .collect();
+        let includes = filter_flag(&cflags, "-I");
         let definitions = filter_flag(&cflags, "-D");
         let compile_flags = filter_excluding_flags(&cflags, &["-I", "-D"]);
 
@@ -203,21 +200,29 @@ impl Library {
         let library_names = filter_flag(&libs, "-l");
 
         let dylib_location = if !library_names.is_empty() {
-            find_library(library_names.first().unwrap(), "so", &search_paths).ok()
+            Some(find_library(
+                library_names.first().unwrap(),
+                "so",
+                &search_paths,
+            )?)
         } else {
             None
         };
 
         let archive_location = if !library_names.is_empty() {
-            find_library(library_names.first().unwrap(), "a", &search_paths).ok()
+            Some(find_library(
+                library_names.first().unwrap(),
+                "a",
+                &search_paths,
+            )?)
         } else {
             None
         };
 
-        let link_libraries: HashMap<String, PathBuf> = library_names
+        let link_libraries: HashMap<String, String> = library_names
             .iter()
             .skip(1)
-            .map(|name| -> Result<(String, PathBuf)> {
+            .map(|name| -> Result<(String, String)> {
                 let dylib_path = find_library(name, "so", &search_paths);
                 let archive_path = find_library(name, "a", &search_paths);
 

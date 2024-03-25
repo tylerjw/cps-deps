@@ -69,13 +69,7 @@ fn main() -> anyhow::Result<()> {
                                 cps::LanguageStringList::any_language_map(library.definitions)
                             }),
                             includes: (!library.includes.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(
-                                    library
-                                        .includes
-                                        .into_iter()
-                                        .map(|path| path.into_os_string().into_string().unwrap())
-                                        .collect(),
-                                )
+                                cps::LanguageStringList::any_language_map(library.includes)
                             }),
                             link_flags: (!library.link_flags.is_empty())
                                 .then_some(library.link_flags),
@@ -107,7 +101,7 @@ fn main() -> anyhow::Result<()> {
                 components.insert(
                     library.default_component_name.clone(),
                     cps::Component::Archive(cps::LocationRequiredComponent {
-                        location: archive_location.into_os_string().into_string().unwrap(),
+                        location: archive_location,
                         requires,
                         compile_flags: (!library.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(library.compile_flags)
@@ -115,15 +109,8 @@ fn main() -> anyhow::Result<()> {
                         definitions: (!library.definitions.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(library.definitions)
                         }),
-                        includes: (!library.includes.is_empty()).then(|| {
-                            cps::LanguageStringList::any_language_map(
-                                library
-                                    .includes
-                                    .into_iter()
-                                    .map(|path| path.into_os_string().into_string().unwrap())
-                                    .collect(),
-                            )
-                        }),
+                        includes: (!library.includes.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(library.includes)),
                         link_flags: (!library.link_flags.is_empty()).then_some(library.link_flags),
                         ..cps::LocationRequiredComponent::default()
                     }),
@@ -134,7 +121,7 @@ fn main() -> anyhow::Result<()> {
                         components.insert(
                             name,
                             cps::Component::Dylib(cps::LocationRequiredComponent {
-                                location: location.into_os_string().into_string().unwrap(),
+                                location,
                                 ..cps::LocationRequiredComponent::default()
                             }),
                         );
@@ -142,7 +129,7 @@ fn main() -> anyhow::Result<()> {
                         components.insert(
                             name,
                             cps::Component::Archive(cps::LocationRequiredComponent {
-                                location: location.into_os_string().into_string().unwrap(),
+                                location,
                                 ..cps::LocationRequiredComponent::default()
                             }),
                         );
@@ -181,7 +168,7 @@ fn main() -> anyhow::Result<()> {
                 components.insert(
                     library.default_component_name.clone(),
                     cps::Component::Dylib(cps::LocationRequiredComponent {
-                        location: dylib_location.into_os_string().into_string().unwrap(),
+                        location: dylib_location,
                         requires,
                         compile_flags: (!library.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(library.compile_flags)
@@ -189,15 +176,8 @@ fn main() -> anyhow::Result<()> {
                         definitions: (!library.definitions.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(library.definitions)
                         }),
-                        includes: (!library.includes.is_empty()).then(|| {
-                            cps::LanguageStringList::any_language_map(
-                                library
-                                    .includes
-                                    .into_iter()
-                                    .map(|path| path.into_os_string().into_string().unwrap())
-                                    .collect(),
-                            )
-                        }),
+                        includes: (!library.includes.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(library.includes)),
                         link_flags: (!library.link_flags.is_empty()).then_some(library.link_flags),
                         ..cps::LocationRequiredComponent::default()
                     }),
@@ -208,7 +188,7 @@ fn main() -> anyhow::Result<()> {
                         components.insert(
                             name,
                             cps::Component::Dylib(cps::LocationRequiredComponent {
-                                location: location.into_os_string().into_string().unwrap(),
+                                location,
                                 ..cps::LocationRequiredComponent::default()
                             }),
                         );
@@ -216,7 +196,7 @@ fn main() -> anyhow::Result<()> {
                         components.insert(
                             name,
                             cps::Component::Archive(cps::LocationRequiredComponent {
-                                location: location.into_os_string().into_string().unwrap(),
+                                location,
                                 ..cps::LocationRequiredComponent::default()
                             }),
                         );
