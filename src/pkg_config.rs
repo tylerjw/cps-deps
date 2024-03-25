@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct Dependency {
     pub name: String,
     pub op: Option<String>,
@@ -30,7 +30,7 @@ impl Dependency {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct PkgConfigFile {
     pub name: String,
     pub version: String,
@@ -332,7 +332,51 @@ fn filter_excluding_flags(data: &[String], flags: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn test_parse() {
+fn test_parse_pc_files() -> Result<()> {
+    let fcl_pc = r#"
+prefix=/usr
+exec_prefix=${prefix}
+libdir=/usr/lib/x86_64-linux-gnu
+includedir=/usr/include
+
+Name: fcl
+Description: Flexible Collision Library
+Version: 0.7.0
+Requires: ccd eigen3 octomap
+Libs: -L${libdir} -lfcl
+Cflags: -std=c++11 -I${includedir}
+    "#;
+
+    assert_eq!(
+        PkgConfigFile::parse(fcl_pc)?,
+        PkgConfigFile {
+            name: "fcl".to_string(),
+            description: "Flexible Collision Library".to_string(),
+            version: "0.7.0".to_string(),
+            requires: vec![
+                Dependency {
+                    name: "ccd".to_string(),
+                    ..Dependency::default()
+                },
+                Dependency {
+                    name: "eigen3".to_string(),
+                    ..Dependency::default()
+                },
+                Dependency {
+                    name: "octomap".to_string(),
+                    ..Dependency::default()
+                },
+            ],
+            link_locations: vec!["/usr/lib/x86_64-linux-gnu".to_string()],
+            link_libraries: vec!["fcl".to_string()],
+            includes: vec!["/usr/include".to_string()],
+            compile_flags: vec!["-std=c++11".to_string()],
+            ..PkgConfigFile::default()
+        },
+        "input: {}",
+        fcl_pc
+    );
+
     let srvcore_pc = r#"
 prefix=/usr
 exec_prefix=${prefix}
@@ -347,28 +391,30 @@ Libs: -L${libdir} -lnss3 -lnssutil3 -lsmime3 -lssl3
 Cflags: -I${includedir}
     "#;
 
-    let _library = Library::new(srvcore_pc, "nss.pc").unwrap();
-    dbg!(_library);
-}
-
-#[test]
-fn test_parse_fcl() {
-    let fcl = r#"
-prefix=/usr
-exec_prefix=${prefix}
-libdir=/usr/lib/x86_64-linux-gnu
-includedir=/usr/include
-
-Name: fcl
-Description: Flexible Collision Library
-Version: 0.7.0
-Requires: ccd eigen3 octomap
-Libs: -L${libdir} -lfcl
-Cflags: -std=c++11 -I${includedir}
-    "#;
-
-    let _library = Library::new(fcl, "nss.pc").unwrap();
-    dbg!(_library);
+    assert_eq!(
+        PkgConfigFile::parse(srvcore_pc)?,
+        PkgConfigFile {
+            name: "NSS".to_string(),
+            description: "Mozilla Network Security Services".to_string(),
+            version: "3.68.2".to_string(),
+            requires: vec![Dependency {
+                name: "nspr".to_string(),
+                ..Dependency::default()
+            },],
+            link_locations: vec!["/usr/lib/x86_64-linux-gnu".to_string()],
+            link_libraries: vec![
+                "nss3".to_string(),
+                "nssutil3".to_string(),
+                "smime3".to_string(),
+                "ssl3".to_string()
+            ],
+            includes: vec!["/usr/include/nss".to_string()],
+            ..PkgConfigFile::default()
+        },
+        "input: {}",
+        srvcore_pc
+    );
+    Ok(())
 }
 
 #[test]
