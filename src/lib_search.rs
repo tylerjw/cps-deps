@@ -36,3 +36,19 @@ pub fn find_library(library: &str, extension: &str, search_paths: &[PathBuf]) ->
         .into_string()
         .unwrap())
 }
+
+pub fn find_dylib(library: &str, search_paths: &[PathBuf]) -> Result<String> {
+    find_library(library, "so", search_paths)
+}
+
+pub fn find_archive(library: &str, search_paths: &[PathBuf]) -> Result<String> {
+    find_library(library, "a", search_paths)
+}
+
+pub fn is_dylib(path: &str) -> bool {
+    path.ends_with("so")
+}
+
+pub fn is_archive(path: &str) -> bool {
+    path.ends_with('a')
+}

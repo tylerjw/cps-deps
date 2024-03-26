@@ -40,6 +40,7 @@ fn main() -> anyhow::Result<()> {
             .context("error converting OsStr to str")?
             .to_string();
         let data = std::fs::read_to_string(path)?;
+        let pkg = pkg_config::PkgConfigFile::parse(&data)?;
         let library = pkg_config::Library::new(&data, &pc_filename);
         let library = match library {
             Ok(library) => library,
@@ -53,26 +54,24 @@ fn main() -> anyhow::Result<()> {
             (None, None) => {
                 // Interface
                 cps::Package {
-                    name: library.name.clone(),
+                    name: pkg.name.clone(),
                     cps_version: "0.10.0".to_string(),
-                    version: library.version,
-                    description: library.description,
+                    version: Some(pkg.version),
+                    description: Some(pkg.description),
                     default_components: Some(vec![library.default_component_name.clone()]),
                     components: HashMap::from([(
                         library.default_component_name,
                         cps::Component::Interface(cps::LocationOptionalComponent {
-                            requires: library.requires,
-                            compile_flags: (!library.compile_flags.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(library.compile_flags)
+                            requires: Some(pkg.requires.iter().map(|d| d.name.clone()).collect()),
+                            compile_flags: (!pkg.compile_flags.is_empty()).then(|| {
+                                cps::LanguageStringList::any_language_map(pkg.compile_flags)
                             }),
-                            definitions: (!library.definitions.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(library.definitions)
+                            definitions: (!pkg.definitions.is_empty()).then(|| {
+                                cps::LanguageStringList::any_language_map(pkg.definitions)
                             }),
-                            includes: (!library.includes.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(library.includes)
-                            }),
-                            link_flags: (!library.link_flags.is_empty())
-                                .then_some(library.link_flags),
+                            includes: (!pkg.includes.is_empty())
+                                .then(|| cps::LanguageStringList::any_language_map(pkg.includes)),
+                            link_flags: (!pkg.link_flags.is_empty()).then_some(pkg.link_flags),
                             ..cps::LocationOptionalComponent::default()
                         }),
                     )]),
@@ -90,7 +89,12 @@ fn main() -> anyhow::Result<()> {
                             .map(|name| format!(":{}", name))
                             .collect()
                     });
-                let remote_requres = library.requires;
+                let remote_requres = Some(
+                    pkg.requires
+                        .iter()
+                        .map(|d| d.name.clone())
+                        .collect::<Vec<_>>(),
+                );
                 let requires = match (local_requires, remote_requres) {
                     (Some(local), Some(remote)) => {
                         Some(local.into_iter().chain(remote.into_iter()).collect())
@@ -103,15 +107,13 @@ fn main() -> anyhow::Result<()> {
                     cps::Component::Archive(cps::LocationRequiredComponent {
                         location: archive_location,
                         requires,
-                        compile_flags: (!library.compile_flags.is_empty()).then(|| {
-                            cps::LanguageStringList::any_language_map(library.compile_flags)
-                        }),
-                        definitions: (!library.definitions.is_empty()).then(|| {
-                            cps::LanguageStringList::any_language_map(library.definitions)
-                        }),
-                        includes: (!library.includes.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(library.includes)),
-                        link_flags: (!library.link_flags.is_empty()).then_some(library.link_flags),
+                        compile_flags: (!pkg.compile_flags.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(pkg.compile_flags)),
+                        definitions: (!pkg.definitions.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(pkg.definitions)),
+                        includes: (!pkg.includes.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(pkg.includes)),
+                        link_flags: (!pkg.link_flags.is_empty()).then_some(pkg.link_flags),
                         ..cps::LocationRequiredComponent::default()
                     }),
                 );
@@ -137,10 +139,10 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 cps::Package {
-                    name: library.name.clone(),
+                    name: pkg.name.clone(),
                     cps_version: "0.10.0".to_string(),
-                    version: library.version,
-                    description: library.description,
+                    version: Some(pkg.version),
+                    description: Some(pkg.description),
                     default_components: Some(vec![library.default_component_name]),
                     components,
                     ..cps::Package::default()
@@ -157,7 +159,12 @@ fn main() -> anyhow::Result<()> {
                             .map(|name| format!(":{}", name))
                             .collect()
                     });
-                let remote_requres = library.requires;
+                let remote_requres = Some(
+                    pkg.requires
+                        .iter()
+                        .map(|d| d.name.clone())
+                        .collect::<Vec<_>>(),
+                );
                 let requires = match (local_requires, remote_requres) {
                     (Some(local), Some(remote)) => {
                         Some(local.into_iter().chain(remote.into_iter()).collect())
@@ -170,15 +177,13 @@ fn main() -> anyhow::Result<()> {
                     cps::Component::Dylib(cps::LocationRequiredComponent {
                         location: dylib_location,
                         requires,
-                        compile_flags: (!library.compile_flags.is_empty()).then(|| {
-                            cps::LanguageStringList::any_language_map(library.compile_flags)
-                        }),
-                        definitions: (!library.definitions.is_empty()).then(|| {
-                            cps::LanguageStringList::any_language_map(library.definitions)
-                        }),
-                        includes: (!library.includes.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(library.includes)),
-                        link_flags: (!library.link_flags.is_empty()).then_some(library.link_flags),
+                        compile_flags: (!pkg.compile_flags.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(pkg.compile_flags)),
+                        definitions: (!pkg.definitions.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(pkg.definitions)),
+                        includes: (!pkg.includes.is_empty())
+                            .then(|| cps::LanguageStringList::any_language_map(pkg.includes)),
+                        link_flags: (!pkg.link_flags.is_empty()).then_some(pkg.link_flags),
                         ..cps::LocationRequiredComponent::default()
                     }),
                 );
@@ -204,10 +209,10 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 cps::Package {
-                    name: library.name.clone(),
+                    name: pkg.name.clone(),
                     cps_version: "0.10.0".to_string(),
-                    version: library.version,
-                    description: library.description,
+                    version: Some(pkg.version),
+                    description: Some(pkg.description),
                     default_components: Some(vec![library.default_component_name]),
                     components,
                     ..cps::Package::default()

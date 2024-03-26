@@ -1,4 +1,4 @@
-use crate::lib_search::find_library;
+use crate::lib_search::{find_archive, find_dylib};
 use anyhow::{anyhow, Result};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -35,18 +35,18 @@ pub struct PkgConfigFile {
     pub name: String,
     pub version: String,
     pub description: String,
-    pub url: String,
+    pub url: Option<String>,
     pub includes: Vec<String>,
     pub definitions: Vec<String>,
     pub compile_flags: Vec<String>,
-    pub cflags_private: String,
-    pub copyright: String,
+    pub cflags_private: Option<String>,
+    pub copyright: Option<String>,
     pub link_locations: Vec<String>,
     pub link_libraries: Vec<String>,
     pub link_flags: Vec<String>,
-    pub libs_private: String,
-    pub license: String,
-    pub maintainer: String,
+    pub libs_private: Option<String>,
+    pub license: Option<String>,
+    pub maintainer: Option<String>,
     pub requires: Vec<Dependency>,
     pub requires_private: Vec<Dependency>,
     pub conflicts: Vec<Dependency>,
@@ -58,9 +58,12 @@ impl PkgConfigFile {
         let data = strip_comments(data);
         let data = expand_variables(&data, 0)?;
 
-        let name = capture_property("Name", &data)?;
-        let version = capture_property("Version", &data)?;
-        let description = capture_property("Description", &data)?;
+        let name =
+            capture_property("Name", &data)?.ok_or(anyhow!("missing required property `Name`"))?;
+        let version = capture_property("Version", &data)?
+            .ok_or(anyhow!("missing required property `Version`"))?;
+        let description = capture_property("Description", &data)?
+            .ok_or(anyhow!("missing required property `Description`"))?;
         let url = capture_property("URL", &data)?;
         let cflags = capture_property("Cflags", &data)?;
         let cflags_private = capture_property("Cflags.private", &data)?;
@@ -69,19 +72,27 @@ impl PkgConfigFile {
         let libs_private = capture_property("Libs.private", &data)?;
         let license = capture_property("License", &data)?;
         let maintainer = capture_property("Maintainer", &data)?;
-        let requires = capture_property("Requires", &data)?;
-        let requires_private = capture_property("Requires.private", &data)?;
-        let conflicts = capture_property("Conflicts", &data)?;
-        let provides = capture_property("Provides", &data)?;
+        let requires = capture_property("Requires", &data)?.unwrap_or_default();
+        let requires_private = capture_property("Requires.private", &data)?.unwrap_or_default();
+        let conflicts = capture_property("Conflicts", &data)?.unwrap_or_default();
+        let provides = capture_property("Provides", &data)?.unwrap_or_default();
 
         // process cflags
-        let cflags: Vec<_> = cflags.split_whitespace().map(String::from).collect();
+        let cflags: Vec<_> = cflags
+            .unwrap_or_default()
+            .split_whitespace()
+            .map(String::from)
+            .collect();
         let includes = filter_flag(&cflags, "-I");
         let definitions = filter_flag(&cflags, "-D");
         let compile_flags = filter_excluding_flags(&cflags, &["-I", "-D"]);
 
         // process libs
-        let libs: Vec<_> = libs.split_whitespace().map(String::from).collect();
+        let libs: Vec<_> = libs
+            .unwrap_or_default()
+            .split_whitespace()
+            .map(String::from)
+            .collect();
         let link_locations = filter_flag(&libs, "-L");
         let link_libraries = filter_flag(&libs, "-l");
         let link_flags = filter_excluding_flags(&libs, &["-L", "-l"]);
@@ -116,112 +127,43 @@ impl PkgConfigFile {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Library {
-    pub name: String,
-    pub description: Option<String>,
-    pub version: Option<String>,
-    pub requires: Option<Vec<String>>,
-    pub includes: Vec<String>,
-    pub definitions: Vec<String>,
-    pub compile_flags: Vec<String>,
     pub default_component_name: String,
     pub dylib_location: Option<String>,
     pub archive_location: Option<String>,
     pub link_libraries: HashMap<String, String>,
-    pub link_flags: Vec<String>,
 }
 
 impl Library {
     pub fn new(data: &str, pc_filename: &str) -> Result<Self> {
-        let data = strip_comments(data);
-        let data = expand_variables(&data, 0)?;
+        let pkg = PkgConfigFile::parse(data)?;
 
-        let name = Regex::new(r"Name:[ ]+(.+)")
-            .unwrap()
-            .captures(&data)
-            .map(|cap| cap[1].to_string())
-            .unwrap_or_default();
-        let description = Regex::new(r"Description:[ ]+(.+)")
-            .unwrap()
-            .captures(&data)
-            .map(|cap| cap[1].to_string());
-        let version = Regex::new(r"Version:[ ]+(.+)")
-            .unwrap()
-            .captures(&data)
-            .map(|cap| cap[1].to_string());
-        let requires = Regex::new(r"Requires:[ ]+(.+)")
-            .unwrap()
-            .captures(&data)
-            .map(|cap| cap[1].to_string())
-            .map(|req| {
-                req.split(", ")
-                    .map(String::from)
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<String>>()
-            });
-        let libs = Regex::new(r"Libs:[ ]+(.+)")
-            .unwrap()
-            .captures(&data)
-            .map(|cap| cap[1].to_string())
-            .map(|req| {
-                req.split(' ')
-                    .map(String::from)
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<String>>()
-            })
-            .unwrap_or_default();
-        let cflags = Regex::new(r"Cflags:[ ]+(.+)")
-            .unwrap()
-            .captures(&data)
-            .map(|cap| cap[1].to_string())
-            .map(|req| {
-                req.split(' ')
-                    .map(String::from)
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<String>>()
-            })
-            .unwrap_or_default();
-
-        let includes = filter_flag(&cflags, "-I");
-        let definitions = filter_flag(&cflags, "-D");
-        let compile_flags = filter_excluding_flags(&cflags, &["-I", "-D"]);
-
-        let search_paths = filter_flag(&libs, "-L")
+        let search_paths = pkg
+            .link_locations
             .iter()
             .map(PathBuf::from)
             .collect::<Vec<_>>();
 
-        let link_flags = filter_excluding_flags(&libs, &["-L", "-l"]);
+        let dylib_location = pkg
+            .link_libraries
+            .first()
+            .map(|library| find_dylib(library, &search_paths))
+            .transpose()?;
 
-        let library_names = filter_flag(&libs, "-l");
+        let archive_location = pkg
+            .link_libraries
+            .first()
+            .map(|library| find_archive(library, &search_paths))
+            .transpose()?;
 
-        let dylib_location = if !library_names.is_empty() {
-            Some(find_library(
-                library_names.first().unwrap(),
-                "so",
-                &search_paths,
-            )?)
-        } else {
-            None
-        };
-
-        let archive_location = if !library_names.is_empty() {
-            Some(find_library(
-                library_names.first().unwrap(),
-                "a",
-                &search_paths,
-            )?)
-        } else {
-            None
-        };
-
-        let link_libraries: HashMap<String, String> = library_names
+        let link_libraries: HashMap<String, String> = pkg
+            .link_libraries
             .iter()
             .skip(1)
             .map(|name| -> Result<(String, String)> {
-                let dylib_path = find_library(name, "so", &search_paths);
-                let archive_path = find_library(name, "a", &search_paths);
+                let dylib_path = find_dylib(name, &search_paths);
+                let archive_path = find_archive(name, &search_paths);
 
                 // prefer dylib if dylib_location exists
                 if dylib_location.is_some() {
@@ -249,30 +191,21 @@ impl Library {
             })
             .collect::<Result<_>>()?;
 
-        let default_component_name = library_names.first().unwrap_or(&name).clone();
+        let default_component_name = pkg.link_libraries.first().unwrap_or(&pkg.name).clone();
 
         Ok(Self {
-            name,
-            description,
-            version,
-            requires,
-            includes,
-            definitions,
-            compile_flags,
             default_component_name,
             dylib_location,
             archive_location,
             link_libraries,
-            link_flags,
         })
     }
 }
 
-fn capture_property(name: &str, data: &str) -> Result<String> {
+fn capture_property(name: &str, data: &str) -> Result<Option<String>> {
     Ok(Regex::new(&format!(r"{}:[ ]+(.+)", name))?
         .captures(data)
-        .map(|cap| cap[1].trim().to_string())
-        .unwrap_or_default())
+        .map(|cap| cap[1].trim().to_string()))
 }
 
 fn strip_comments(data: &str) -> String {
@@ -432,17 +365,39 @@ Libs.private:
 Cflags: -I${includedir}
     "#;
 
-    assert_eq!(capture_property("Name", data)?, "Fontconfig");
-    assert_eq!(capture_property("Version", data)?, "2.13.1");
     assert_eq!(
-        capture_property("Description", data)?,
+        capture_property("Name", data)?.expect("`Name` property not captured"),
+        "Fontconfig"
+    );
+    assert_eq!(
+        capture_property("Version", data)?.expect("`Version` property not captured"),
+        "2.13.1"
+    );
+    assert_eq!(
+        capture_property("Description", data)?.expect("`Description` property not captured"),
         "Font configuration and customization library"
     );
-    assert_eq!(capture_property("Cflags", data)?, "-I${includedir}");
-    assert_eq!(capture_property("Libs", data)?, "-L${libdir} -lfontconfig");
-    assert_eq!(capture_property("Libs.private", data)?, "");
-    assert_eq!(capture_property("Requires", data)?, "freetype2 >= 21.0.15");
-    assert_eq!(capture_property("Requires.private", data)?, "uuid expat");
+    assert_eq!(
+        capture_property("Cflags", data)?.expect("`Cflags` property not captured"),
+        "-I${includedir}"
+    );
+    assert_eq!(
+        capture_property("Libs", data)?.expect("`Libs` property not captured"),
+        "-L${libdir} -lfontconfig"
+    );
+    assert_eq!(
+        capture_property("Libs.private", data)?.expect("`Libs.private` property not captured"),
+        ""
+    );
+    assert_eq!(
+        capture_property("Requires", data)?.expect("`Requires` property not captured"),
+        "freetype2 >= 21.0.15"
+    );
+    assert_eq!(
+        capture_property("Requires.private", data)?
+            .expect("`Requires.private` property not captured"),
+        "uuid expat"
+    );
 
     Ok(())
 }
