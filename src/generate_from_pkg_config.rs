@@ -56,30 +56,36 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                     default_components: Some(vec![library.default_component_name.clone()]),
                     components: HashMap::from([(
                         library.default_component_name,
-                        cps::Component::Interface(cps::LocationOptionalComponent {
-                            requires: Some(
-                                pkg_config.requires.iter().map(|d| d.name.clone()).collect(),
-                            ),
-                            compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
-                            }),
-                            definitions: (!pkg_config.definitions.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(pkg_config.definitions)
-                            }),
-                            includes: (!pkg_config.includes.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(pkg_config.includes)
-                            }),
-                            link_flags: (!pkg_config.link_flags.is_empty())
-                                .then_some(pkg_config.link_flags),
-                            ..cps::LocationOptionalComponent::default()
-                        }),
+                        cps::MaybeComponent::Component(cps::Component::Interface(
+                            cps::ComponentFields {
+                                requires: Some(
+                                    pkg_config.requires.iter().map(|d| d.name.clone()).collect(),
+                                ),
+                                compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
+                                    cps::LanguageStringList::any_language_map(
+                                        pkg_config.compile_flags,
+                                    )
+                                }),
+                                definitions: (!pkg_config.definitions.is_empty()).then(|| {
+                                    cps::LanguageStringList::any_language_map(
+                                        pkg_config.definitions,
+                                    )
+                                }),
+                                includes: (!pkg_config.includes.is_empty()).then(|| {
+                                    cps::LanguageStringList::any_language_map(pkg_config.includes)
+                                }),
+                                link_flags: (!pkg_config.link_flags.is_empty())
+                                    .then_some(pkg_config.link_flags),
+                                ..cps::ComponentFields::default()
+                            },
+                        )),
                     )]),
                     ..cps::Package::default()
                 }
             }
             (Some(archive_location), None) => {
                 // Archive
-                let mut components = HashMap::<String, cps::Component>::new();
+                let mut components = HashMap::<String, cps::MaybeComponent>::new();
                 let local_requires: Option<Vec<String>> =
                     (library.link_libraries.keys().next().is_some()).then(|| {
                         library
@@ -104,8 +110,8 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
 
                 components.insert(
                     library.default_component_name.clone(),
-                    cps::Component::Archive(cps::LocationRequiredComponent {
-                        location: archive_location,
+                    cps::MaybeComponent::Component(cps::Component::Archive(cps::ComponentFields {
+                        location: Some(archive_location),
                         requires,
                         compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
@@ -118,26 +124,30 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                         }),
                         link_flags: (!pkg_config.link_flags.is_empty())
                             .then_some(pkg_config.link_flags),
-                        ..cps::LocationRequiredComponent::default()
-                    }),
+                        ..cps::ComponentFields::default()
+                    })),
                 );
 
                 for (name, location) in library.link_libraries {
                     if location.ends_with("so") {
                         components.insert(
                             name,
-                            cps::Component::Dylib(cps::LocationRequiredComponent {
-                                location,
-                                ..cps::LocationRequiredComponent::default()
-                            }),
+                            cps::MaybeComponent::Component(cps::Component::Dylib(
+                                cps::ComponentFields {
+                                    location: Some(location),
+                                    ..cps::ComponentFields::default()
+                                },
+                            )),
                         );
                     } else {
                         components.insert(
                             name,
-                            cps::Component::Archive(cps::LocationRequiredComponent {
-                                location,
-                                ..cps::LocationRequiredComponent::default()
-                            }),
+                            cps::MaybeComponent::Component(cps::Component::Archive(
+                                cps::ComponentFields {
+                                    location: Some(location),
+                                    ..cps::ComponentFields::default()
+                                },
+                            )),
                         );
                     }
                 }
@@ -154,7 +164,7 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
             }
             (_, Some(dylib_location)) => {
                 // Dylib
-                let mut components = HashMap::<String, cps::Component>::new();
+                let mut components = HashMap::<String, cps::MaybeComponent>::new();
                 let local_requires: Option<Vec<String>> =
                     (library.link_libraries.keys().next().is_some()).then(|| {
                         library
@@ -179,8 +189,8 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
 
                 components.insert(
                     library.default_component_name.clone(),
-                    cps::Component::Dylib(cps::LocationRequiredComponent {
-                        location: dylib_location,
+                    cps::MaybeComponent::Component(cps::Component::Dylib(cps::ComponentFields {
+                        location: Some(dylib_location),
                         requires,
                         compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
@@ -193,26 +203,30 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                         }),
                         link_flags: (!pkg_config.link_flags.is_empty())
                             .then_some(pkg_config.link_flags),
-                        ..cps::LocationRequiredComponent::default()
-                    }),
+                        ..cps::ComponentFields::default()
+                    })),
                 );
 
                 for (name, location) in library.link_libraries {
                     if location.ends_with("so") {
                         components.insert(
                             name,
-                            cps::Component::Dylib(cps::LocationRequiredComponent {
-                                location,
-                                ..cps::LocationRequiredComponent::default()
-                            }),
+                            cps::MaybeComponent::Component(cps::Component::Dylib(
+                                cps::ComponentFields {
+                                    location: Some(location),
+                                    ..cps::ComponentFields::default()
+                                },
+                            )),
                         );
                     } else {
                         components.insert(
                             name,
-                            cps::Component::Archive(cps::LocationRequiredComponent {
-                                location,
-                                ..cps::LocationRequiredComponent::default()
-                            }),
+                            cps::MaybeComponent::Component(cps::Component::Archive(
+                                cps::ComponentFields {
+                                    location: Some(location),
+                                    ..cps::ComponentFields::default()
+                                },
+                            )),
                         );
                     }
                 }
