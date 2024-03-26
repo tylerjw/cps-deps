@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use cps_deps::{cps, generate_from_pkg_config};
+use cps_deps::cps::parse_and_print_cps;
+use cps_deps::generate_from_pkg_config::generate_from_pkg_config;
 use std::path::PathBuf;
 
 /// Common Package Specification (CPS) deps
@@ -29,7 +30,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     match &args.command {
-        Commands::Generate { outdir } => generate_from_pkg_config::generate_from_pkg_config(outdir),
-        Commands::ParseCps { filepath } => cps::parse_and_print_cps(filepath),
+        Commands::Generate { outdir } => generate_from_pkg_config(outdir),
+        Commands::ParseCps { filepath } => parse_and_print_cps(filepath),
     }
 }
