@@ -10,7 +10,6 @@ pub struct Platform {
     pub c_runtime_version: Option<String>,
     pub clr_vendor: Option<String>,
     pub clr_version: Option<String>,
-    pub compat_version: Option<String>,
     pub cpp_runtime_vendor: Option<String>,
     pub cpp_runtime_version: Option<String>,
     pub isa: Option<String>,
@@ -34,7 +33,7 @@ pub struct LocationRequiredComponent {
     pub location: String,
     pub requires: Option<Vec<String>>,
     pub configurations: Option<HashMap<String, Configuration>>,
-    pub compile_feature: Option<Vec<String>>,
+    pub compile_features: Option<Vec<String>>,
     pub compile_flags: Option<LanguageStringList>,
     pub definitions: Option<LanguageStringList>,
     pub includes: Option<LanguageStringList>,
@@ -52,7 +51,7 @@ pub struct LocationOptionalComponent {
     pub location: Option<String>,
     pub requires: Option<Vec<String>>,
     pub configurations: Option<HashMap<String, Configuration>>,
-    pub compile_feature: Option<Vec<String>>,
+    pub compile_features: Option<Vec<String>>,
     pub compile_flags: Option<LanguageStringList>,
     pub definitions: Option<LanguageStringList>,
     pub includes: Option<LanguageStringList>,
@@ -78,13 +77,11 @@ pub enum Component {
     Unknwon,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum LanguageStringList {
     LanguageMap(HashMap<String, Vec<String>>),
     List(Vec<String>),
-    #[default]
-    Unset,
 }
 
 impl LanguageStringList {
@@ -96,8 +93,9 @@ impl LanguageStringList {
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Configuration {
+    pub location: Option<String>,
     pub requires: Option<Vec<String>>,
-    pub compile_feature: Option<Vec<String>>,
+    pub compile_features: Option<Vec<String>>,
     pub compile_flags: Option<LanguageStringList>,
     pub definitions: Option<LanguageStringList>,
     pub includes: Option<LanguageStringList>,
@@ -117,7 +115,7 @@ pub struct Package {
     pub components: HashMap<String, Component>,
 
     pub platform: Option<Platform>,
-    pub configuration: Option<String>,
+    pub configuration: Option<String>, // required in configuration-specific cps and ignored otherwise
     pub configurations: Option<Vec<String>>,
     pub cps_path: Option<String>,
     pub version: Option<String>,
@@ -125,6 +123,7 @@ pub struct Package {
     pub description: Option<String>,
     pub default_components: Option<Vec<String>>,
     pub requires: Option<HashMap<String, Requirement>>,
+    pub compat_version: Option<String>,
 }
 
 pub fn parse_and_print_cps(filepath: &Path) -> Result<()> {
