@@ -339,8 +339,7 @@ fn test_parse_dependency_list() -> Result<()> {
     let expected = [
         vec![Dependency {
             name: "ACE_ETCL".to_string(),
-            op: None,
-            version: None,
+            ..Dependency::default()
         }],
         vec![Dependency {
             name: "freetype2".to_string(),
@@ -374,13 +373,11 @@ fn test_parse_dependency_list() -> Result<()> {
         vec![
             Dependency {
                 name: "glib-2.0".to_string(),
-                op: None,
-                version: None,
+                ..Dependency::default()
             },
             Dependency {
                 name: "gobject-2.0".to_string(),
-                op: None,
-                version: None,
+                ..Dependency::default()
             },
         ],
         vec![Dependency {
@@ -391,25 +388,21 @@ fn test_parse_dependency_list() -> Result<()> {
         vec![
             Dependency {
                 name: "nspr".to_string(),
-                op: None,
-                version: None,
+                ..Dependency::default()
             },
             Dependency {
                 name: "nss".to_string(),
-                op: None,
-                version: None,
+                ..Dependency::default()
             },
         ],
         vec![
             Dependency {
                 name: "xproto".to_string(),
-                op: None,
-                version: None,
+                ..Dependency::default()
             },
             Dependency {
                 name: "x11".to_string(),
-                op: None,
-                version: None,
+                ..Dependency::default()
             },
         ],
         vec![],
