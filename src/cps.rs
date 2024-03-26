@@ -1,7 +1,9 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path, str::FromStr};
+
+const CPS_VERSION: &str = "0.11.0";
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -45,8 +47,26 @@ pub struct ComponentFields {
     pub link_requires: Option<String>,
 }
 
+impl ComponentFields {
+    /// Test if the has a location either through an attribute or all configurations
+    pub fn has_location(&self) -> bool {
+        if self.location.is_some() {
+            return true;
+        } else if let Some(configuration) = &self.configurations {
+            if configuration
+                .values()
+                .all(|config| config.location.is_some())
+            {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum MaybeComponent {
     Component(Component),
     Other(serde_json::Value),
@@ -97,7 +117,7 @@ pub struct Configuration {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Package {
     pub name: String,
     pub cps_version: String,
@@ -129,7 +149,28 @@ impl FromStr for Package {
 
     fn from_str(data: &str) -> Result<Self> {
         let package: Package = serde_json::from_str(data)?;
+        package.validate()?;
         Ok(package)
+    }
+}
+
+impl Default for Package {
+    fn default() -> Self {
+        Self {
+            name: String::default(),
+            cps_version: CPS_VERSION.to_string(),
+            components: HashMap::default(),
+            platform: None,
+            configuration: None,
+            configurations: None,
+            cps_path: None,
+            version: None,
+            version_schema: None,
+            description: None,
+            default_components: None,
+            requires: None,
+            compat_version: None,
+        }
     }
 }
 
@@ -139,12 +180,46 @@ impl Package {
         R: std::io::Read,
     {
         let package: Package = serde_json::from_reader(reader)?;
+        package.validate()?;
         Ok(package)
+    }
+
+    /// Used by deserialization functions to validate CPS schema rules
+    pub fn validate(&self) -> Result<()> {
+        if self.cps_version != CPS_VERSION {
+            bail!("Unsupported CPS version: {}", self.cps_version);
+        }
+        for (name, component) in self.components.iter() {
+            match component {
+                MaybeComponent::Component(Component::Archive(fields)) => {
+                    if !fields.has_location() {
+                        bail!("Component `{}` is missing attribute `location`", name);
+                    }
+                }
+                MaybeComponent::Component(Component::Dylib(fields)) => {
+                    if !fields.has_location() {
+                        bail!("Component `{}` is missing attribute `location`", name);
+                    }
+                }
+                MaybeComponent::Component(Component::Module(fields)) => {
+                    if !fields.has_location() {
+                        bail!("Component `{}` is missing attribute `location`", name);
+                    }
+                }
+                MaybeComponent::Component(Component::Jar(fields)) => {
+                    if !fields.has_location() {
+                        bail!("Component `{}` is missing attribute `location`", name);
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 }
 
 #[test]
-fn test_parse_cps() -> Result<()> {
+fn test_parse_sample_cps() -> Result<()> {
     // cps_version was manually added: https://github.com/cps-org/cps/issues/57
     let sample_cps = r#"{
     "name": "sample",

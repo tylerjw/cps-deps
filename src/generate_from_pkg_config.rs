@@ -50,7 +50,6 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                 // Interface
                 cps::Package {
                     name: pkg_config.name.clone(),
-                    cps_version: "0.10.0".to_string(),
                     version: Some(pkg_config.version),
                     description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name.clone()]),
@@ -154,7 +153,6 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
 
                 cps::Package {
                     name: pkg_config.name.clone(),
-                    cps_version: "0.10.0".to_string(),
                     version: Some(pkg_config.version),
                     description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name]),
@@ -233,7 +231,6 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
 
                 cps::Package {
                     name: pkg_config.name.clone(),
-                    cps_version: "0.10.0".to_string(),
                     version: Some(pkg_config.version),
                     description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name]),
