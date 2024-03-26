@@ -12,7 +12,7 @@ pub struct Dependency {
 
 impl Dependency {
     fn parse_list(data: &str) -> Vec<Self> {
-        let re = Regex::new(r"([^ ,]+)[ ]*(([<=>!]+)[ ]*([^ ,]+)?)?").unwrap();
+        let re = Regex::new(r"([^ ,<=>!]+)[ ]*(([<=>!]+)[ ]*([^ ,]+)?)?").unwrap();
         re.captures_iter(data)
             .flat_map(|c| -> Result<Self> {
                 Ok(Self {
