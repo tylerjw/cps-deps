@@ -27,6 +27,21 @@ impl Dependency {
             })
             .collect()
     }
+
+    pub fn from_name(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            ..Self::default()
+        }
+    }
+
+    pub fn with_version(name: &str, op: &str, version: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            op: Some(op.to_string()),
+            version: Some(version.to_string()),
+        }
+    }
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -213,18 +228,9 @@ Cflags: -std=c++11 -I${includedir}
             description: "Flexible Collision Library".to_string(),
             version: "0.7.0".to_string(),
             requires: vec![
-                Dependency {
-                    name: "ccd".to_string(),
-                    ..Dependency::default()
-                },
-                Dependency {
-                    name: "eigen3".to_string(),
-                    ..Dependency::default()
-                },
-                Dependency {
-                    name: "octomap".to_string(),
-                    ..Dependency::default()
-                },
+                Dependency::from_name("ccd"),
+                Dependency::from_name("eigen3"),
+                Dependency::from_name("octomap"),
             ],
             link_locations: vec!["/usr/lib/x86_64-linux-gnu".to_string()],
             link_libraries: vec!["fcl".to_string()],
@@ -256,10 +262,7 @@ Cflags: -I${includedir}
             name: "NSS".to_string(),
             description: "Mozilla Network Security Services".to_string(),
             version: "3.68.2".to_string(),
-            requires: vec![Dependency {
-                name: "nspr".to_string(),
-                ..Dependency::default()
-            },],
+            requires: vec![Dependency::from_name("nspr"),],
             link_locations: vec!["/usr/lib/x86_64-linux-gnu".to_string()],
             link_libraries: vec![
                 "nss3".to_string(),
@@ -337,73 +340,25 @@ fn test_parse_dependency_list() -> Result<()> {
         "",
     ];
     let expected = [
-        vec![Dependency {
-            name: "ACE_ETCL".to_string(),
-            ..Dependency::default()
-        }],
-        vec![Dependency {
-            name: "freetype2".to_string(),
-            op: Some(">=".to_string()),
-            version: Some("21.0.15".to_string()),
-        }],
+        vec![Dependency::from_name("ACE_ETCL")],
+        vec![Dependency::with_version("freetype2", ">=", "21.0.15")],
         vec![
-            Dependency {
-                name: "gio-2.0".to_string(),
-                op: Some(">=".to_string()),
-                version: Some("2.50".to_string()),
-            },
-            Dependency {
-                name: "gee-0.8".to_string(),
-                op: Some(">=".to_string()),
-                version: Some("0.20".to_string()),
-            },
+            Dependency::with_version("gio-2.0", ">=", "2.50"),
+            Dependency::with_version("gee-0.8", ">=", "0.20"),
         ],
         vec![
-            Dependency {
-                name: "gcalc-2".to_string(),
-                op: Some(">=".to_string()),
-                version: Some("3.34".to_string()),
-            },
-            Dependency {
-                name: "gtk+-3.0".to_string(),
-                op: Some(">".to_string()),
-                version: Some("3.19.3".to_string()),
-            },
+            Dependency::with_version("gcalc-2", ">=", "3.34"),
+            Dependency::with_version("gtk+-3.0", ">", "3.19.3"),
         ],
         vec![
-            Dependency {
-                name: "glib-2.0".to_string(),
-                ..Dependency::default()
-            },
-            Dependency {
-                name: "gobject-2.0".to_string(),
-                ..Dependency::default()
-            },
+            Dependency::from_name("glib-2.0"),
+            Dependency::from_name("gobject-2.0"),
         ],
-        vec![Dependency {
-            name: "libudev".to_string(),
-            op: Some(">=".to_string()),
-            version: Some("199".to_string()),
-        }],
+        vec![Dependency::with_version("libudev", ">=", "199")],
+        vec![Dependency::from_name("nspr"), Dependency::from_name("nss")],
         vec![
-            Dependency {
-                name: "nspr".to_string(),
-                ..Dependency::default()
-            },
-            Dependency {
-                name: "nss".to_string(),
-                ..Dependency::default()
-            },
-        ],
-        vec![
-            Dependency {
-                name: "xproto".to_string(),
-                ..Dependency::default()
-            },
-            Dependency {
-                name: "x11".to_string(),
-                ..Dependency::default()
-            },
+            Dependency::from_name("xproto"),
+            Dependency::from_name("x11"),
         ],
         vec![],
     ];
