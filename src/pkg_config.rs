@@ -385,10 +385,7 @@ Cflags: -I${includedir}
         capture_property("Libs", data)?.expect("`Libs` property not captured"),
         "-L${libdir} -lfontconfig"
     );
-    assert_eq!(
-        capture_property("Libs.private", data)?.expect("`Libs.private` property not captured"),
-        ""
-    );
+    assert_eq!(capture_property("Libs.private", data)?, None);
     assert_eq!(
         capture_property("Requires", data)?.expect("`Requires` property not captured"),
         "freetype2 >= 21.0.15"
