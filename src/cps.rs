@@ -25,6 +25,7 @@ pub struct Platform {
 pub struct Requirement {
     pub components: Option<Vec<String>>,
     pub hints: Option<Vec<String>>,
+    pub version: Option<String>,
 }
 
 #[skip_serializing_none]
