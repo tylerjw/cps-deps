@@ -1,6 +1,7 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use std::collections::HashMap;
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -123,4 +124,13 @@ pub struct Package {
     pub description: Option<String>,
     pub default_components: Option<Vec<String>>,
     pub requires: Option<HashMap<String, Requirement>>,
+}
+
+pub fn parse_and_print_cps(filepath: &Path) -> Result<()> {
+    let file = File::open(filepath)?;
+    let reader = BufReader::new(file);
+    let package: Package = serde_json::from_reader(reader)?;
+
+    dbg!(package);
+    Ok(())
 }

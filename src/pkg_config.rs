@@ -1,6 +1,5 @@
-use crate::lib_search::{find_archive, find_dylib};
 use anyhow::{anyhow, Result};
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use regex::Regex;
 
@@ -123,81 +122,6 @@ impl PkgConfigFile {
             requires_private,
             conflicts,
             provides,
-        })
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct Library {
-    pub default_component_name: String,
-    pub dylib_location: Option<String>,
-    pub archive_location: Option<String>,
-    pub link_libraries: HashMap<String, String>,
-}
-
-impl Library {
-    pub fn new(data: &str, pc_filename: &str) -> Result<Self> {
-        let pkg = PkgConfigFile::parse(data)?;
-
-        let search_paths = pkg
-            .link_locations
-            .iter()
-            .map(PathBuf::from)
-            .collect::<Vec<_>>();
-
-        let dylib_location = pkg
-            .link_libraries
-            .first()
-            .map(|library| find_dylib(library, &search_paths))
-            .transpose()?;
-
-        let archive_location = pkg
-            .link_libraries
-            .first()
-            .map(|library| find_archive(library, &search_paths))
-            .transpose()?;
-
-        let link_libraries: HashMap<String, String> = pkg
-            .link_libraries
-            .iter()
-            .skip(1)
-            .map(|name| -> Result<(String, String)> {
-                let dylib_path = find_dylib(name, &search_paths);
-                let archive_path = find_archive(name, &search_paths);
-
-                // prefer dylib if dylib_location exists
-                if dylib_location.is_some() {
-                    if let Ok(dylib_path) = dylib_path {
-                        return Ok((name.clone(), dylib_path));
-                    } else if let Ok(archive_path) = archive_path {
-                        return Ok((name.clone(), archive_path));
-                    }
-                }
-
-                // otherwise, prefer static lib
-                if let Ok(archive_path) = archive_path {
-                    return Ok((name.clone(), archive_path));
-                } else if let Ok(dylib_path) = dylib_path {
-                    return Ok((name.clone(), dylib_path));
-                }
-
-                // if we found neither, error
-                Err(anyhow!(
-                    "Error finding paths for `{}`:\ndylib: {}\narchive: {}",
-                    &pc_filename,
-                    dylib_path.err().unwrap(),
-                    archive_path.err().unwrap(),
-                ))
-            })
-            .collect::<Result<_>>()?;
-
-        let default_component_name = pkg.link_libraries.first().unwrap_or(&pkg.name).clone();
-
-        Ok(Self {
-            default_component_name,
-            dylib_location,
-            archive_location,
-            link_libraries,
         })
     }
 }

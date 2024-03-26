@@ -1,9 +1,8 @@
-use anyhow::Context;
-use clap::Parser;
-use cps_deps::cps;
-use cps_deps::pkg_config;
+use crate::{cps, lib_search, pkg_config};
+use anyhow::{Context, Result};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 fn find_pc_files() -> Vec<PathBuf> {
@@ -22,14 +21,10 @@ fn find_pc_files() -> Vec<PathBuf> {
     .collect()
 }
 
-#[derive(Parser)]
-struct Args {
-    outputdir: std::path::PathBuf,
-}
-
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
     let pc_files = find_pc_files();
+
+    fs::create_dir_all(outdir)?;
 
     for path in pc_files {
         dbg!(&path);
@@ -40,8 +35,8 @@ fn main() -> anyhow::Result<()> {
             .context("error converting OsStr to str")?
             .to_string();
         let data = std::fs::read_to_string(path)?;
-        let pkg = pkg_config::PkgConfigFile::parse(&data)?;
-        let library = pkg_config::Library::new(&data, &pc_filename);
+        let pkg_config = pkg_config::PkgConfigFile::parse(&data)?;
+        let library = lib_search::FullLibraryPaths::find(&pkg_config);
         let library = match library {
             Ok(library) => library,
             Err(error) => {
@@ -54,24 +49,28 @@ fn main() -> anyhow::Result<()> {
             (None, None) => {
                 // Interface
                 cps::Package {
-                    name: pkg.name.clone(),
+                    name: pkg_config.name.clone(),
                     cps_version: "0.10.0".to_string(),
-                    version: Some(pkg.version),
-                    description: Some(pkg.description),
+                    version: Some(pkg_config.version),
+                    description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name.clone()]),
                     components: HashMap::from([(
                         library.default_component_name,
                         cps::Component::Interface(cps::LocationOptionalComponent {
-                            requires: Some(pkg.requires.iter().map(|d| d.name.clone()).collect()),
-                            compile_flags: (!pkg.compile_flags.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(pkg.compile_flags)
+                            requires: Some(
+                                pkg_config.requires.iter().map(|d| d.name.clone()).collect(),
+                            ),
+                            compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
+                                cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
                             }),
-                            definitions: (!pkg.definitions.is_empty()).then(|| {
-                                cps::LanguageStringList::any_language_map(pkg.definitions)
+                            definitions: (!pkg_config.definitions.is_empty()).then(|| {
+                                cps::LanguageStringList::any_language_map(pkg_config.definitions)
                             }),
-                            includes: (!pkg.includes.is_empty())
-                                .then(|| cps::LanguageStringList::any_language_map(pkg.includes)),
-                            link_flags: (!pkg.link_flags.is_empty()).then_some(pkg.link_flags),
+                            includes: (!pkg_config.includes.is_empty()).then(|| {
+                                cps::LanguageStringList::any_language_map(pkg_config.includes)
+                            }),
+                            link_flags: (!pkg_config.link_flags.is_empty())
+                                .then_some(pkg_config.link_flags),
                             ..cps::LocationOptionalComponent::default()
                         }),
                     )]),
@@ -90,7 +89,8 @@ fn main() -> anyhow::Result<()> {
                             .collect()
                     });
                 let remote_requres = Some(
-                    pkg.requires
+                    pkg_config
+                        .requires
                         .iter()
                         .map(|d| d.name.clone())
                         .collect::<Vec<_>>(),
@@ -107,13 +107,17 @@ fn main() -> anyhow::Result<()> {
                     cps::Component::Archive(cps::LocationRequiredComponent {
                         location: archive_location,
                         requires,
-                        compile_flags: (!pkg.compile_flags.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(pkg.compile_flags)),
-                        definitions: (!pkg.definitions.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(pkg.definitions)),
-                        includes: (!pkg.includes.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(pkg.includes)),
-                        link_flags: (!pkg.link_flags.is_empty()).then_some(pkg.link_flags),
+                        compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
+                            cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
+                        }),
+                        definitions: (!pkg_config.definitions.is_empty()).then(|| {
+                            cps::LanguageStringList::any_language_map(pkg_config.definitions)
+                        }),
+                        includes: (!pkg_config.includes.is_empty()).then(|| {
+                            cps::LanguageStringList::any_language_map(pkg_config.includes)
+                        }),
+                        link_flags: (!pkg_config.link_flags.is_empty())
+                            .then_some(pkg_config.link_flags),
                         ..cps::LocationRequiredComponent::default()
                     }),
                 );
@@ -139,10 +143,10 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 cps::Package {
-                    name: pkg.name.clone(),
+                    name: pkg_config.name.clone(),
                     cps_version: "0.10.0".to_string(),
-                    version: Some(pkg.version),
-                    description: Some(pkg.description),
+                    version: Some(pkg_config.version),
+                    description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name]),
                     components,
                     ..cps::Package::default()
@@ -160,7 +164,8 @@ fn main() -> anyhow::Result<()> {
                             .collect()
                     });
                 let remote_requres = Some(
-                    pkg.requires
+                    pkg_config
+                        .requires
                         .iter()
                         .map(|d| d.name.clone())
                         .collect::<Vec<_>>(),
@@ -177,13 +182,17 @@ fn main() -> anyhow::Result<()> {
                     cps::Component::Dylib(cps::LocationRequiredComponent {
                         location: dylib_location,
                         requires,
-                        compile_flags: (!pkg.compile_flags.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(pkg.compile_flags)),
-                        definitions: (!pkg.definitions.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(pkg.definitions)),
-                        includes: (!pkg.includes.is_empty())
-                            .then(|| cps::LanguageStringList::any_language_map(pkg.includes)),
-                        link_flags: (!pkg.link_flags.is_empty()).then_some(pkg.link_flags),
+                        compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
+                            cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
+                        }),
+                        definitions: (!pkg_config.definitions.is_empty()).then(|| {
+                            cps::LanguageStringList::any_language_map(pkg_config.definitions)
+                        }),
+                        includes: (!pkg_config.includes.is_empty()).then(|| {
+                            cps::LanguageStringList::any_language_map(pkg_config.includes)
+                        }),
+                        link_flags: (!pkg_config.link_flags.is_empty())
+                            .then_some(pkg_config.link_flags),
                         ..cps::LocationRequiredComponent::default()
                     }),
                 );
@@ -209,10 +218,10 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 cps::Package {
-                    name: pkg.name.clone(),
+                    name: pkg_config.name.clone(),
                     cps_version: "0.10.0".to_string(),
-                    version: Some(pkg.version),
-                    description: Some(pkg.description),
+                    version: Some(pkg_config.version),
+                    description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name]),
                     components,
                     ..cps::Package::default()
@@ -222,7 +231,7 @@ fn main() -> anyhow::Result<()> {
 
         let json = serde_json::to_string_pretty(&cps)?;
         let cps_filename = pc_filename.replace(".pc", ".cps");
-        std::fs::write(args.outputdir.join(cps_filename), json)?;
+        std::fs::write(outdir.join(cps_filename), json)?;
     }
 
     Ok(())
