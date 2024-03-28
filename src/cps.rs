@@ -72,6 +72,22 @@ pub enum MaybeComponent {
     Other(serde_json::Value),
 }
 
+impl MaybeComponent {
+    pub fn from_dylib_location(location: &str) -> Self {
+        Self::Component(Component::Dylib(ComponentFields {
+            location: Some(location.to_string()),
+            ..ComponentFields::default()
+        }))
+    }
+
+    pub fn from_archive_location(location: &str) -> Self {
+        Self::Component(Component::Archive(ComponentFields {
+            location: Some(location.to_string()),
+            ..ComponentFields::default()
+        }))
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(tag = "type", rename_all = "lowercase")]
