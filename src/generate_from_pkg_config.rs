@@ -21,28 +21,51 @@ fn find_pc_files() -> Vec<PathBuf> {
     .collect()
 }
 
-pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
-    let pc_files = find_pc_files();
+impl TryFrom<pkg_config::PkgConfigFile> for cps::Package {
+    type Error = anyhow::Error;
 
-    fs::create_dir_all(outdir)?;
+    fn try_from(pkg_config: pkg_config::PkgConfigFile) -> Result<cps::Package> {
+        let library = lib_search::FullLibraryPaths::find(&pkg_config)?;
 
-    for path in pc_files {
-        dbg!(&path);
-        let pc_filename = path
-            .file_name()
-            .context("error getting filename of pc file")?
-            .to_str()
-            .context("error converting OsStr to str")?
-            .to_string();
-        let data = std::fs::read_to_string(path)?;
-        let pkg_config = pkg_config::PkgConfigFile::parse(&data)?;
-        let library = lib_search::FullLibraryPaths::find(&pkg_config);
-        let library = match library {
-            Ok(library) => library,
-            Err(error) => {
-                println!("{}", error);
-                continue;
+        let package_requires_map: HashMap<_, _> = pkg_config
+            .requires
+            .iter()
+            .filter(|req| req.version.is_some())
+            .map(|req| {
+                (
+                    req.name.clone(),
+                    cps::Requirement {
+                        version: req.version.clone(),
+                        ..cps::Requirement::default()
+                    },
+                )
+            })
+            .collect();
+        let package_requires_map =
+            (!package_requires_map.is_empty()).then_some(package_requires_map);
+
+        let local_requires: Option<Vec<String>> = (library.link_libraries.keys().next().is_some())
+            .then(|| {
+                library
+                    .link_libraries
+                    .keys()
+                    .map(|name| format!(":{}", name))
+                    .collect()
+            });
+        let remote_requres = Some(
+            pkg_config
+                .requires
+                .iter()
+                .map(|d| d.name.clone())
+                .collect::<Vec<_>>(),
+        );
+        let main_component_requires = match (local_requires, remote_requres) {
+            (Some(local), Some(remote)) => {
+                Some(local.into_iter().chain(remote.into_iter()).collect())
             }
+            (Some(local), None) => Some(local),
+            (None, Some(remote)) => Some(remote),
+            (None, None) => None,
         };
 
         let cps = match (library.archive_location, library.dylib_location) {
@@ -52,14 +75,13 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                     name: pkg_config.name.clone(),
                     version: Some(pkg_config.version),
                     description: Some(pkg_config.description),
+                    requires: package_requires_map,
                     default_components: Some(vec![library.default_component_name.clone()]),
                     components: HashMap::from([(
                         library.default_component_name,
                         cps::MaybeComponent::Component(cps::Component::Interface(
                             cps::ComponentFields {
-                                requires: Some(
-                                    pkg_config.requires.iter().map(|d| d.name.clone()).collect(),
-                                ),
+                                requires: main_component_requires,
                                 compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
                                     cps::LanguageStringList::any_language_map(
                                         pkg_config.compile_flags,
@@ -85,33 +107,11 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
             (Some(archive_location), None) => {
                 // Archive
                 let mut components = HashMap::<String, cps::MaybeComponent>::new();
-                let local_requires: Option<Vec<String>> =
-                    (library.link_libraries.keys().next().is_some()).then(|| {
-                        library
-                            .link_libraries
-                            .keys()
-                            .map(|name| format!(":{}", name))
-                            .collect()
-                    });
-                let remote_requres = Some(
-                    pkg_config
-                        .requires
-                        .iter()
-                        .map(|d| d.name.clone())
-                        .collect::<Vec<_>>(),
-                );
-                let requires = match (local_requires, remote_requres) {
-                    (Some(local), Some(remote)) => {
-                        Some(local.into_iter().chain(remote.into_iter()).collect())
-                    }
-                    (local, remote) => local.or(remote),
-                };
-
                 components.insert(
                     library.default_component_name.clone(),
                     cps::MaybeComponent::Component(cps::Component::Archive(cps::ComponentFields {
                         location: Some(archive_location),
-                        requires,
+                        requires: main_component_requires,
                         compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
                         }),
@@ -156,6 +156,7 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                     version: Some(pkg_config.version),
                     description: Some(pkg_config.description),
                     default_components: Some(vec![library.default_component_name]),
+                    requires: package_requires_map,
                     components,
                     ..cps::Package::default()
                 }
@@ -163,33 +164,11 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
             (_, Some(dylib_location)) => {
                 // Dylib
                 let mut components = HashMap::<String, cps::MaybeComponent>::new();
-                let local_requires: Option<Vec<String>> =
-                    (library.link_libraries.keys().next().is_some()).then(|| {
-                        library
-                            .link_libraries
-                            .keys()
-                            .map(|name| format!(":{}", name))
-                            .collect()
-                    });
-                let remote_requres = Some(
-                    pkg_config
-                        .requires
-                        .iter()
-                        .map(|d| d.name.clone())
-                        .collect::<Vec<_>>(),
-                );
-                let requires = match (local_requires, remote_requres) {
-                    (Some(local), Some(remote)) => {
-                        Some(local.into_iter().chain(remote.into_iter()).collect())
-                    }
-                    (local, remote) => local.or(remote),
-                };
-
                 components.insert(
                     library.default_component_name.clone(),
                     cps::MaybeComponent::Component(cps::Component::Dylib(cps::ComponentFields {
                         location: Some(dylib_location),
-                        requires,
+                        requires: main_component_requires,
                         compile_flags: (!pkg_config.compile_flags.is_empty()).then(|| {
                             cps::LanguageStringList::any_language_map(pkg_config.compile_flags)
                         }),
@@ -233,14 +212,40 @@ pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
                     name: pkg_config.name.clone(),
                     version: Some(pkg_config.version),
                     description: Some(pkg_config.description),
+                    requires: package_requires_map,
                     default_components: Some(vec![library.default_component_name]),
                     components,
                     ..cps::Package::default()
                 }
             }
         };
+        Ok(cps)
+    }
+}
 
-        let json = serde_json::to_string_pretty(&cps)?;
+pub fn generate_from_pkg_config(outdir: &Path) -> Result<()> {
+    let pc_files = find_pc_files();
+
+    fs::create_dir_all(outdir)?;
+
+    for path in pc_files {
+        dbg!(&path);
+        let pc_filename = path
+            .file_name()
+            .context("error getting filename of pc file")?
+            .to_str()
+            .context("error converting OsStr to str")?
+            .to_string();
+        let data = std::fs::read_to_string(path)?;
+        let pkg_config = pkg_config::PkgConfigFile::parse(&data)?;
+        let cps_package: cps::Package = match pkg_config.try_into() {
+            Ok(cps) => cps,
+            Err(error) => {
+                eprintln!("Error: {}", error);
+                continue;
+            }
+        };
+        let json = serde_json::to_string_pretty(&cps_package)?;
         let cps_filename = pc_filename.replace(".pc", ".cps");
         std::fs::write(outdir.join(cps_filename), json)?;
     }
