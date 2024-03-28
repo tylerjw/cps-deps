@@ -180,7 +180,12 @@ fn expand_variables(data: &str, index: i32) -> Result<String> {
 
     let mut data = data.to_string();
     for (key, value) in variables {
+        // ${variable} syntax
         let from = format!("${{{}}}", key);
+        data = data.replace(&from, &value);
+
+        // $(variable) syntax
+        let from = format!("$({})", key);
         data = data.replace(&from, &value);
     }
 
