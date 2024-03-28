@@ -196,11 +196,17 @@ pub fn generate_all_from_pkg_config(outdir: &Path) -> Result<()> {
             .context("error converting OsStr to str")?
             .to_string();
         let data = std::fs::read_to_string(path)?;
-        let pkg_config = pkg_config::PkgConfigFile::parse(&data)?;
+        let pkg_config = match pkg_config::PkgConfigFile::parse(&data) {
+            Ok(pkg_config) => pkg_config,
+            Err(error) => {
+                eprintln!("Error:\n{}", error);
+                continue;
+            }
+        };
         let cps_package: cps::Package = match pkg_config.try_into() {
             Ok(cps) => cps,
             Err(error) => {
-                eprintln!("Error: {}", error);
+                eprintln!("Error:\n{}", error);
                 continue;
             }
         };
